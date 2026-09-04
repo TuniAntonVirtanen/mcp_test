@@ -3,15 +3,14 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
 const app = express();
-
 app.use(express.json());
 
-const server = new McpServer({
+const mcpServer = new McpServer({
   name: "mcp-hello-world",
   version: "1.0.0"
 });
 
-server.tool(
+mcpServer.tool(
   "hello_mcp",
   "Returns a distinctive message to prove that MCP is working.",
   {},
@@ -27,21 +26,20 @@ server.tool(
   }
 );
 
-app.post("/mcp", async (req, res) => {
-  const transport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: undefined
-  });
+// Streamable HTTP transport manages endpoints statefully
+const transport = new StreamableHTTPServerTransport({
+  endpoint: "/mcp"
+});
 
-  res.on("close", () => {
-    transport.close();
-  });
-
-  await server.connect(transport);
+// Bind transport handlers
+app.all("/mcp", async (req, res) => {
   await transport.handleRequest(req, res, req.body);
 });
 
-const port = process.env.PORT || 3000;
+// Connect server to transport
+await mcpServer.connect(transport);
 
+const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`MCP server listening on port ${port}`);
 });
